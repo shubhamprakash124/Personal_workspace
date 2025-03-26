@@ -1,0 +1,107 @@
+
+---------------------------------------------------------------------------------------------
+
+Review 1
+
+Comments => "Avoid redundant condition checks and use a more readable approach."
+Suggestion =>
+
+Use a HashSet<string> to store valid open days for faster lookup.
+Convert input to lowercase once before checking.
+
+public bool IsShopOpen(string day)
+{
+    var openDays = new HashSet<string> { "friday", "saturday", "sunday" };
+    return !string.IsNullOrEmpty(day) && openDays.Contains(day.ToLower());
+}
+
+---------------------------------------------------------------------------------------------
+
+Review 3
+
+Comments => "Avoid deep nesting and unnecessary checks."
+Suggestion =>
+Simplify the logic by handling base cases first.
+Remove magic number 50 and replace it with a named constant.
+
+private const int MAX_FIBONACCI = 50;
+
+public long Fibonacci(int n)
+{
+    if (n >= MAX_FIBONACCI)
+        throw new System.Exception("Not supported");
+
+    if (n == 0) return 0;
+    if (n == 1) return 1;
+
+    return Fibonacci(n - 1) + Fibonacci(n - 2);
+}
+
+---------------------------------------------------------------------------------------------
+
+Review 4
+
+Comments => "Use meaningful variable names for better readability."
+Suggestion =>
+Rename l to cities and li to city.
+Avoid .Count() in a loop condition as it has performance overhead.
+
+var cities = new[] { "Austin", "New York", "San Francisco" };
+
+for (var i = 0; i < cities.Length; i++)
+{
+    var city = cities[i];
+    DoStuff();
+    DoSomeOtherStuff();
+    Dispatch(city);
+}
+
+---------------------------------------------------------------------------------------------
+
+Review 5
+
+Comments => "Avoid magic numbers and use named constants or enums."
+Suggestion =>
+Define an enum for user roles instead of using raw numbers.
+
+public enum UserRole
+{
+    Admin = 8,
+    User = 1,
+    Guest = 0
+}
+
+if (userRole == (int)UserRole.Admin)
+{
+    // Admin logic
+}
+
+---------------------------------------------------------------------------------------------
+
+Review 6
+
+Comments => "Avoid redundant prefixes in property names."
+Suggestion =>
+Remove Car prefix from property names as they are already inside the Car class.
+
+public class Car
+{
+    public string Make { get; set; }
+    public string Model { get; set; }
+    public string Color { get; set; }
+}
+
+---------------------------------------------------------------------------------------------
+
+Review 9
+
+Comments => "Use null-coalescing operator (??) for default values."
+Suggestion =>
+
+public void CreateMicrobrewery(string name = null)
+{
+    var breweryName = name ?? "Hipster Brew Co.";
+    // ...
+}
+
+---------------------------------------------------------------------------------------------
