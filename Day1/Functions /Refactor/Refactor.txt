@@ -1,0 +1,39 @@
+public void ProcessOrder(Order order, IEmailService emailService, IOrderRepository orderRepository)
+{
+    ValidateOrder(order);
+ 
+    decimal total = CalculateTotal(order);
+    order.Total = total;
+ 
+    orderRepository.Add(order);
+    orderRepository.Save();
+ 
+    SendConfirmationEmail(order, emailService);
+}
+ 
+private void ValidateOrder(Order order)
+{
+    if (order == null) 
+        throw new ArgumentNullException(nameof(order));
+    if (order.Items == null || order.Items.Count == 0) 
+        throw new InvalidOperationException("Order must contain at least one item.");
+}
+ 
+private decimal CalculateTotal(Order order)
+{
+    const decimal TAX_RATE = 0.10m;
+    const decimal PREMIUM_DISCOUNT = 0.10m;
+ 
+    decimal subtotal = order.Items.Sum(item => item.Price * item.Quantity);
+    decimal taxAmount = order.Items.Where(item => item.IsTaxable).Sum(item => item.Price * TAX_RATE);
+    decimal discount = order.Customer.IsPremium ? subtotal * PREMIUM_DISCOUNT : 0m;
+ 
+    return subtotal + taxAmount - discount;
+}
+ 
+private void SendConfirmationEmail(Order order, IEmailService emailService)
+{
+    string subject = "Order Confirmed";
+    string message = $"Total: ${order.Total}";
+    emailService.Send(order.Customer.Email, subject, message);
+}
