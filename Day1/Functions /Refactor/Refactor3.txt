@@ -1,0 +1,54 @@
+Refactored 3: EmployeeDatabase and Related Classes
+Issues:
+
+GetEmployee(), SaveEmployee(), and DeleteEmployee() contain hardcoded validation logic inside the database layer.
+
+Logic should be moved to service layer to separate concerns.
+
+Refactored Code:
+
+public class EmployeeService
+{
+    private readonly IEmployeeRepository _repo;
+
+    public EmployeeService(IEmployeeRepository repo)
+    {
+        _repo = repo;
+    }
+
+    public Employee GetEmployee(int id)
+    {
+        ValidateEmployeeId(id);
+        return _repo.GetEmployee(id);
+    }
+
+    public void UpdateEmployee(Employee emp)
+    {
+        ValidateEmployeeName(emp.Name);
+        _repo.SaveEmployee(emp);
+    }
+
+    public void RemoveEmployee(int id)
+    {
+        ValidateRemovableEmployee(id);
+        _repo.DeleteEmployee(id);
+    }
+
+    private void ValidateEmployeeId(int id)
+    {
+        if (id < 50)
+            throw new InvalidDataException("Employee ID starts from 50; reserved IDs (1-49) cannot be accessed.");
+    }
+
+    private void ValidateEmployeeName(string name)
+    {
+        if (name.Length > 150)
+            throw new InvalidDataException("Name too long");
+    }
+
+    private void ValidateRemovableEmployee(int id)
+    {
+        if (id == 1)
+            throw new InvalidDataException("Chairman cannot be removed");
+    }
+}
