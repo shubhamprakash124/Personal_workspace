@@ -1,70 +1,236 @@
-Refactored 4: PatientVitalsService
-Issues:
+public class Temperature
 
-Too many parameters (violates clean code principles).
-
-Hardcoded validation logic scattered throughout the method.
-
-Extracted validations into separate methods for readability.
-
-Refactored Code:
-
-public class PatientVitalsService
 {
-    public void RecordVitals(PatientVitals vitals)
+
+    private const double MinTemperature = 34.0;
+
+    private const double MaxTemperature = 42.0;
+ 
+    public double Value { get; }
+ 
+    public Temperature(double value)
+
     {
-        ValidateTemperature(vitals.Temperature);
-        ValidateBloodPressure(vitals.Systolic, vitals.Diastolic);
-        ValidateHeartRate(vitals.HeartRate, vitals.Age);
-        ValidateBloodType(vitals.BloodType);
-        ValidateMealTimingEffect(vitals.LastMealTime, vitals.Diastolic);
+
+        if (value < MinTemperature || value > MaxTemperature)
+
+            throw new ArgumentOutOfRangeException(nameof(value), $"Temperature must be between {MinTemperature}°C and {MaxTemperature}°C.");
+ 
+        Value = value;
+
     }
 
-    private void ValidateTemperature(double temperature)
-    {
-        if (temperature < 34 || temperature > 42)
-            throw new ArgumentException("Invalid temperature");
-    }
+}
 
-    private void ValidateBloodPressure(int systolic, int diastolic)
+public class BloodPressure
+
+{
+
+    private const int MinSystolic = 70;
+
+    private const int MaxSystolic = 200;
+
+    private const int MinDiastolic = 40;
+
+    private const int MaxDiastolic = 120;
+ 
+    public int Systolic { get; }
+
+    public int Diastolic { get; }
+ 
+    public BloodPressure(int systolic, int diastolic)
+
     {
-        if (systolic < 70 || systolic > 200)
-            throw new ArgumentException("Invalid systolic BP");
-        if (diastolic < 40 || diastolic > 120)
-            throw new ArgumentException("Invalid diastolic BP");
+
+        if (systolic < MinSystolic || systolic > MaxSystolic)
+
+            throw new ArgumentOutOfRangeException(nameof(systolic), $"Systolic BP must be between {MinSystolic} and {MaxSystolic} mmHg.");
+
+        if (diastolic < MinDiastolic || diastolic > MaxDiastolic)
+
+            throw new ArgumentOutOfRangeException(nameof(diastolic), $"Diastolic BP must be between {MinDiastolic} and {MaxDiastolic} mmHg.");
+
         if (diastolic > systolic)
-            throw new ArgumentException("Diastolic cannot exceed systolic");
+
+            throw new ArgumentException("Diastolic pressure cannot be greater than systolic pressure.");
+ 
+        Systolic = systolic;
+
+        Diastolic = diastolic;
+
     }
 
-    private void ValidateHeartRate(int heartRate, int age)
+}
+
+public class HeartRate
+
+{
+
+    private const int MinHeartRate = 40;
+
+    private const double MaxHeartRateFactor = 1.2; 
+
+    private const int HeartRateBase = 220;
+ 
+    public int Value { get; }
+ 
+    public HeartRate(int value, int age)
+
     {
-        int maxHeartRate = 220 - age;
-        if (heartRate < 40 || heartRate > maxHeartRate * 1.2)
-            throw new ArgumentException($"Heart rate invalid for age {age}");
+
+        int maxHeartRate = HeartRateBase - age;
+
+        int maxAllowedHeartRate = (int)(maxHeartRate * MaxHeartRateFactor);
+ 
+        if (value < MinHeartRate || value > maxAllowedHeartRate)
+
+            throw new ArgumentOutOfRangeException(nameof(value), $"Heart rate must be between {MinHeartRate} and {maxAllowedHeartRate} bpm for age {age}.");
+ 
+        Value = value;
+
     }
 
-    private void ValidateBloodType(string bloodType)
+}
+
+public class BloodType
+
+{
+
+    private static readonly HashSet<string> ValidTypes = new() 
+
+    { 
+
+        "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" 
+
+    };
+ 
+    public string Value { get; }
+ 
+    public BloodType(string value)
+
     {
-        var validBloodTypes = new HashSet<string> { "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" };
-        if (!validBloodTypes.Contains(bloodType))
-            throw new ArgumentException("Invalid blood type");
+
+        if (!ValidTypes.Contains(value))
+
+            throw new ArgumentException($"Invalid blood type: {value}. Must be one of {string.Join(", ", ValidTypes)}.");
+ 
+        Value = value;
+
     }
 
-    private void ValidateMealTimingEffect(DateTime lastMealTime, int diastolic)
-    {
-        if ((DateTime.Now - lastMealTime).TotalHours < 2 && diastolic > 90)
-            TriggerAlert("Elevated postprandial blood pressure");
-    }
 }
 
 public class PatientVitals
+
 {
-    public int PatientId { get; set; }
-    public double Temperature { get; set; }
-    public int Systolic { get; set; }
-    public int Diastolic { get; set; }
-    public int HeartRate { get; set; }
-    public string BloodType { get; set; }
-    public int Age { get; set; }
-    public DateTime LastMealTime { get; set; }
+
+    public int PatientId { get; }
+
+    public Temperature Temperature { get; }
+
+    public BloodPressure BloodPressure { get; }
+
+    public HeartRate HeartRate { get; }
+
+    public BloodType BloodType { get; }
+
+    public DateTime LastMealTime { get; }
+ 
+    public PatientVitals(int patientId, Temperature temperature, BloodPressure bloodPressure, HeartRate heartRate, BloodType bloodType, DateTime lastMealTime)
+
+    {
+
+        if (patientId <= 0) 
+
+            throw new ArgumentException("Invalid patient ID.");
+ 
+        PatientId = patientId;
+
+        Temperature = temperature;
+
+        BloodPressure = bloodPressure;
+
+        HeartRate = heartRate;
+
+        BloodType = bloodType;
+
+        LastMealTime = lastMealTime;
+
+    }
+
 }
+
+public class PatientVitalsService
+
+{
+
+    private const int PostMealBPThreshold = 90;
+
+    private const int PostMealHoursLimit = 2;
+ 
+    public void RecordVitals(PatientVitals vitals)
+
+    {
+
+        CheckPostMealBloodPressure(vitals);
+
+    }
+ 
+    private void CheckPostMealBloodPressure(PatientVitals vitals)
+
+    {
+
+        if ((DateTime.Now - vitals.LastMealTime).TotalHours < PostMealHoursLimit && vitals.BloodPressure.Diastolic > PostMealBPThreshold)
+
+            TriggerAlert($"Patient {vitals.PatientId}: Elevated postprandial blood pressure.");
+
+    }
+ 
+    private void TriggerAlert(string message)
+
+    {
+
+        Console.WriteLine($"[ALERT]: {message}"); // Placeholder for alert system
+
+    }
+
+}
+
+// how to use it
+
+try
+
+{
+
+    PatientVitals vitals = new PatientVitals(
+
+        patientId: 123,
+
+        temperature: new Temperature(37.5),
+
+        bloodPressure: new BloodPressure(120, 80),
+
+        heartRate: new HeartRate(75, 30),
+
+        bloodType: new BloodType("O+"),
+
+        lastMealTime: DateTime.Now.AddHours(-1)
+
+    );
+ 
+    PatientVitalsService service = new();
+
+    service.RecordVitals(vitals);
+ 
+    Console.WriteLine("Vitals recorded successfully.");
+
+}
+
+catch (Exception ex)
+
+{
+
+    Console.WriteLine($"Error: {ex.Message}");
+
+}
+ 
