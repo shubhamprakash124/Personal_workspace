@@ -1,0 +1,109 @@
+Review 2
+
+Issues:
+
+Modifying the order's total directly (side effect).
+
+Incorrect return type (void should return decimal).
+
+Lack of validation (e.g., negative discounts).
+
+Suggested Refactor:
+
+public decimal ComputeDiscount(Order order, decimal discountAmount)
+{
+    if (discountAmount < 0)
+        throw new ArgumentException("Discount cannot be negative");
+
+    return order.Total - discountAmount;
+}
+
+More maintainable, avoids side effects, and includes validation.
+
+Review 3
+Issues:
+
+Double negative in function name (IsDOMNodeNotPresent).
+
+Hard to read in if condition (!IsDOMNodeNotPresent(node)).
+
+Suggested Refactor:
+
+public bool IsDOMNodePresent(string node)
+{
+    // ...
+}
+
+if (IsDOMNodePresent(node))
+{
+    // ...
+}
+
+Clearer and avoids confusion.
+
+Review 5
+Issues:
+
+Uses GetType() and typecasting (as) instead of polymorphism.
+
+Violates Open/Closed Principle (OCP) – Adding a new vehicle requires modifying this function.
+
+Suggested Refactor (Use Polymorphism):
+
+public interface IVehicle
+{
+    void TravelTo(Location location);
+}
+
+public class Bicycle : IVehicle
+{
+    public void TravelTo(Location location) => PeddleTo(location);
+}
+
+public class Car : IVehicle
+{
+    public void TravelTo(Location location) => DriveTo(location);
+}
+
+public Path TravelToTexas(IVehicle vehicle)
+{
+    vehicle.TravelTo(new Location("texas"));
+}
+
+More scalable and maintainable.
+
+Review 6
+Issues:
+
+Concatenating strings for file paths (prone to errors).
+
+Hardcoded ./temp/ path (should use Path.Combine).
+
+Suggested Refactor:
+
+public void CreateFile(string name, bool isTemporary = false)
+{
+    string filePath = isTemporary ? Path.Combine("temp", name) : name;
+    Touch(filePath);
+}
+
+Uses Path.Combine() for safer paths.
+
+Review 8
+Issues:
+
+Boolean flag (cancellable) makes function unclear.
+
+Suggested Refactor (Use Method Overloading):
+
+public void CreateMenu(string title, string body, string buttonText)
+{
+    // Default non-cancellable menu
+}
+
+public void CreateCancellableMenu(string title, string body, string buttonText)
+{
+    // Cancellable menu logic
+}
+
+Easier to understand without boolean flags.
