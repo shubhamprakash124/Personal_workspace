@@ -1,0 +1,41 @@
+Refactored 2: OrderService Methods
+Issues:
+
+Duplicate logic for subtotal, tax, and discount calculations.
+
+The ProcessOrder and ApplyDiscount methods should reuse common logic.
+
+Refactored Code:
+
+public class OrderService
+{
+    private const decimal TaxRate = 0.08m;
+    
+    public void ProcessOrder(Order order)
+    {
+        ValidateOrder(order);
+        order.Total = CalculateTotal(order, 0);
+        SaveToDatabase(order);
+        SendConfirmationEmail(order.CustomerEmail, order.Total);
+    }
+
+    public void ApplyDiscount(Order order, decimal discountPercent)
+    {
+        ValidateOrder(order);
+        order.Total = CalculateTotal(order, discountPercent);
+        UpdateDatabase(order);
+    }
+
+    private void ValidateOrder(Order order)
+    {
+        if (order == null) throw new ArgumentNullException(nameof(order));
+        if (!order.Items.Any()) throw new InvalidOperationException("Order has no items");
+    }
+
+    private decimal CalculateTotal(Order order, decimal discountPercent)
+    {
+        decimal subtotal = order.Items.Sum(item => item.Price * item.Quantity);
+        decimal tax = subtotal * TaxRate;
+        return (subtotal + tax) * (1 - discountPercent);
+    }
+}
