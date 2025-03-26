@@ -1,0 +1,70 @@
+Refactored 4: PatientVitalsService
+Issues:
+
+Too many parameters (violates clean code principles).
+
+Hardcoded validation logic scattered throughout the method.
+
+Extracted validations into separate methods for readability.
+
+Refactored Code:
+
+public class PatientVitalsService
+{
+    public void RecordVitals(PatientVitals vitals)
+    {
+        ValidateTemperature(vitals.Temperature);
+        ValidateBloodPressure(vitals.Systolic, vitals.Diastolic);
+        ValidateHeartRate(vitals.HeartRate, vitals.Age);
+        ValidateBloodType(vitals.BloodType);
+        ValidateMealTimingEffect(vitals.LastMealTime, vitals.Diastolic);
+    }
+
+    private void ValidateTemperature(double temperature)
+    {
+        if (temperature < 34 || temperature > 42)
+            throw new ArgumentException("Invalid temperature");
+    }
+
+    private void ValidateBloodPressure(int systolic, int diastolic)
+    {
+        if (systolic < 70 || systolic > 200)
+            throw new ArgumentException("Invalid systolic BP");
+        if (diastolic < 40 || diastolic > 120)
+            throw new ArgumentException("Invalid diastolic BP");
+        if (diastolic > systolic)
+            throw new ArgumentException("Diastolic cannot exceed systolic");
+    }
+
+    private void ValidateHeartRate(int heartRate, int age)
+    {
+        int maxHeartRate = 220 - age;
+        if (heartRate < 40 || heartRate > maxHeartRate * 1.2)
+            throw new ArgumentException($"Heart rate invalid for age {age}");
+    }
+
+    private void ValidateBloodType(string bloodType)
+    {
+        var validBloodTypes = new HashSet<string> { "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" };
+        if (!validBloodTypes.Contains(bloodType))
+            throw new ArgumentException("Invalid blood type");
+    }
+
+    private void ValidateMealTimingEffect(DateTime lastMealTime, int diastolic)
+    {
+        if ((DateTime.Now - lastMealTime).TotalHours < 2 && diastolic > 90)
+            TriggerAlert("Elevated postprandial blood pressure");
+    }
+}
+
+public class PatientVitals
+{
+    public int PatientId { get; set; }
+    public double Temperature { get; set; }
+    public int Systolic { get; set; }
+    public int Diastolic { get; set; }
+    public int HeartRate { get; set; }
+    public string BloodType { get; set; }
+    public int Age { get; set; }
+    public DateTime LastMealTime { get; set; }
+}
