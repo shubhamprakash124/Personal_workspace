@@ -1,0 +1,339 @@
+using System;
+using System.Collections.Generic;
+
+namespace FlexibleNotificationSystem
+{
+    #region Core Interfaces
+
+    /// <summary>
+    /// Represents a notification channel for sending messages
+    /// </summary>
+    public interface INotificationChannel
+    {
+        string ChannelName { get; }
+        void Send(string recipient, NotificationContent content);
+    }
+
+    /// <summary>
+    /// Represents content that can be formatted for different notification channels
+    /// </summary>
+    public interface IContentFormatter
+    {
+        NotificationContent FormatForChannel(string channelName, NotificationContent content);
+    }
+
+    #endregion
+
+    #region Domain Models
+
+    /// <summary>
+    /// Represents user preferences for notification channels
+    /// </summary>
+    public class UserPreferences
+    {
+        public string UserId { get; }
+        public List<string> PreferredChannels { get; }
+
+        public UserPreferences(string userId, List<string> preferredChannels)
+        {
+            UserId = userId ?? throw new ArgumentNullException(nameof(userId));
+            PreferredChannels = preferredChannels ?? new List<string>();
+        }
+    }
+
+    /// <summary>
+    /// Content for a notification with different format options
+    /// </summary>
+    public class NotificationContent
+    {
+        public string Title { get; set; }
+        public string PlainTextContent { get; set; }
+        public string HtmlContent { get; set; }
+        public string ActionUrl { get; set; }
+        public string ActionText { get; set; }
+
+        public NotificationContent(string title, string plainTextContent)
+        {
+            Title = title ?? throw new ArgumentNullException(nameof(title));
+            PlainTextContent = plainTextContent ?? throw new ArgumentNullException(nameof(plainTextContent));
+        }
+    }
+
+    #endregion
+
+    #region Notification Channels
+
+    public class EmailChannel : INotificationChannel
+    {
+        public string ChannelName => "Email";
+
+        public void Send(string recipient, NotificationContent content)
+        {
+            // In a real implementation, this would use an email service
+            string emailBody = !string.IsNullOrEmpty(content.HtmlContent) 
+                ? content.HtmlContent 
+                : content.PlainTextContent;
+                
+            Console.WriteLine($"Sending Email to {recipient}");
+            Console.WriteLine($"Subject: {content.Title}");
+            Console.WriteLine($"Body: {emailBody}");
+        }
+    }
+
+    public class SmsChannel : INotificationChannel
+    {
+        public string ChannelName => "SMS";
+        private const int MaxSmsLength = 160;
+
+        public void Send(string recipient, NotificationContent content)
+        {
+            // In a real implementation, this would use an SMS service
+            string smsText = content.PlainTextContent;
+            if (smsText.Length > MaxSmsLength)
+            {
+                smsText = smsText.Substring(0, MaxSmsLength - 3) + "...";
+            }
+            
+            Console.WriteLine($"Sending SMS to {recipient}");
+            Console.WriteLine($"Message: {smsText}");
+        }
+    }
+
+    public class PushNotificationChannel : INotificationChannel
+    {
+        public string ChannelName => "Push";
+
+        public void Send(string recipient, NotificationContent content)
+        {
+            // In a real implementation, this would use a push notification service
+            Console.WriteLine($"Sending Push Notification to {recipient}");
+            Console.WriteLine($"Title: {content.Title}");
+            Console.WriteLine($"Message: {content.PlainTextContent}");
+            
+            if (!string.IsNullOrEmpty(content.ActionUrl))
+            {
+                Console.WriteLine($"Action: {content.ActionText} -> {content.ActionUrl}");
+            }
+        }
+    }
+
+    #endregion
+
+    #region Content Formatters
+
+    public class DefaultContentFormatter : IContentFormatter
+    {
+        public NotificationContent FormatForChannel(string channelName, NotificationContent content)
+        {
+            // Create a copy to avoid modifying the original
+            var formattedContent = new NotificationContent(content.Title, content.PlainTextContent)
+            {
+                HtmlContent = content.HtmlContent,
+                ActionUrl = content.ActionUrl,
+                ActionText = content.ActionText
+            };
+
+            // Apply channel-specific formatting
+            switch (channelName)
+            {
+                case "Email":
+                    if (string.IsNullOrEmpty(formattedContent.HtmlContent))
+                    {
+                        // Convert plain text to simple HTML if no HTML content provided
+                        formattedContent.HtmlContent = $"<html><body><h1>{content.Title}</h1><p>{content.PlainTextContent}</p>";
+                        
+                        if (!string.IsNullOrEmpty(content.ActionUrl))
+                        {
+                            formattedContent.HtmlContent += $"<p><a href=\"{content.ActionUrl}\">{content.ActionText ?? "Click here"}</a></p>";
+                        }
+                        
+                        formattedContent.HtmlContent += "</body></html>";
+                    }
+                    break;
+                    
+                case "SMS":
+                    // SMS content is handled by the SMS channel itself (character limit)
+                    break;
+                    
+                case "Push":
+                    // Ensure push notification is brief
+                    if (formattedContent.PlainTextContent.Length > 100)
+                    {
+                        formattedContent.PlainTextContent = formattedContent.PlainTextContent.Substring(0, 97) + "...";
+                    }
+                    break;
+            }
+
+            return formattedContent;
+        }
+    }
+
+    #endregion
+
+    #region User Preferences Service
+
+    public interface IUserPreferencesService
+    {
+        UserPreferences GetUserPreferences(string userId);
+        void UpdateUserPreferences(UserPreferences preferences);
+    }
+
+    public class InMemoryUserPreferencesService : IUserPreferencesService
+    {
+        private readonly Dictionary<string, UserPreferences> _preferencesStore = new Dictionary<string, UserPreferences>();
+
+        public UserPreferences GetUserPreferences(string userId)
+        {
+            if (_preferencesStore.TryGetValue(userId, out var preferences))
+            {
+                return preferences;
+            }
+
+            // Default to all channels if not specified
+            return new UserPreferences(userId, new List<string> { "Email", "SMS", "Push" });
+        }
+
+        public void UpdateUserPreferences(UserPreferences preferences)
+        {
+            _preferencesStore[preferences.UserId] = preferences;
+        }
+    }
+
+    #endregion
+
+    #region Notification Service
+
+    /// <summary>
+    /// Main service for sending notifications through user-preferred channels
+    /// </summary>
+    public class NotificationService
+    {
+        private readonly Dictionary<string, INotificationChannel> _channels = new Dictionary<string, INotificationChannel>();
+        private readonly IContentFormatter _contentFormatter;
+        private readonly IUserPreferencesService _preferencesService;
+
+        public NotificationService(
+            IEnumerable<INotificationChannel> channels, 
+            IContentFormatter contentFormatter,
+            IUserPreferencesService preferencesService)
+        {
+            _contentFormatter = contentFormatter ?? throw new ArgumentNullException(nameof(contentFormatter));
+            _preferencesService = preferencesService ?? throw new ArgumentNullException(nameof(preferencesService));
+
+            // Register available channels
+            foreach (var channel in channels)
+            {
+                _channels[channel.ChannelName] = channel;
+            }
+        }
+
+        public void SendNotification(string userId, string userContact, NotificationContent content)
+        {
+            if (string.IsNullOrEmpty(userId))
+                throw new ArgumentNullException(nameof(userId));
+                
+            if (string.IsNullOrEmpty(userContact))
+                throw new ArgumentNullException(nameof(userContact));
+                
+            if (content == null)
+                throw new ArgumentNullException(nameof(content));
+
+            // Get user preferences
+            var preferences = _preferencesService.GetUserPreferences(userId);
+
+            // Send to each preferred channel
+            foreach (var channelName in preferences.PreferredChannels)
+            {
+                if (_channels.TryGetValue(channelName, out var channel))
+                {
+                    // Format content for this specific channel
+                    var formattedContent = _contentFormatter.FormatForChannel(channelName, content);
+                    
+                    // Send via the channel
+                    channel.Send(userContact, formattedContent);
+                }
+            }
+        }
+
+        // Method to add a new channel at runtime
+        public void RegisterChannel(INotificationChannel channel)
+        {
+            if (channel == null)
+                throw new ArgumentNullException(nameof(channel));
+                
+            _channels[channel.ChannelName] = channel;
+        }
+    }
+
+    #endregion
+
+    #region Usage Example
+
+    public class Program
+    {
+        public static void Main()
+        {
+            // Setup notification channels
+            var channels = new List<INotificationChannel>
+            {
+                new EmailChannel(),
+                new SmsChannel(),
+                new PushNotificationChannel()
+            };
+
+            // Setup dependencies
+            var contentFormatter = new DefaultContentFormatter();
+            var preferencesService = new InMemoryUserPreferencesService();
+
+            // Create notification service
+            var notificationService = new NotificationService(channels, contentFormatter, preferencesService);
+
+            // Set user preferences (e.g., from a user profile page)
+            var userPreferences = new UserPreferences("user123", new List<string> { "Email", "Push" });
+            preferencesService.UpdateUserPreferences(userPreferences);
+
+            // Create notification content
+            var content = new NotificationContent("Your appointment is confirmed", "Your appointment is scheduled for tomorrow at 2 PM.")
+            {
+                ActionUrl = "https://example.com/appointments/123",
+                ActionText = "View Details"
+            };
+
+            // Send notification
+            notificationService.SendNotification("user123", "user@example.com", content);
+
+            // Example of adding a new channel type at runtime
+            Console.WriteLine("\nAdding WhatsApp channel and sending notification through all channels:\n");
+            
+            // Add a new WhatsApp channel (example only)
+            notificationService.RegisterChannel(new WhatsAppChannel());
+            
+            // Update user preferences to include WhatsApp
+            var updatedPreferences = new UserPreferences("user123", 
+                new List<string> { "Email", "SMS", "Push", "WhatsApp" });
+            preferencesService.UpdateUserPreferences(updatedPreferences);
+            
+            // Send another notification through all channels
+            notificationService.SendNotification("user123", "user@example.com", content);
+        }
+    }
+
+    // Example of adding a new channel type without modifying existing code
+    public class WhatsAppChannel : INotificationChannel
+    {
+        public string ChannelName => "WhatsApp";
+
+        public void Send(string recipient, NotificationContent content)
+        {
+            Console.WriteLine($"Sending WhatsApp message to {recipient}");
+            Console.WriteLine($"Message: {content.PlainTextContent}");
+            
+            if (!string.IsNullOrEmpty(content.ActionUrl))
+            {
+                Console.WriteLine($"With link: {content.ActionUrl}");
+            }
+        }
+    }
+
+    #endregion
+}
